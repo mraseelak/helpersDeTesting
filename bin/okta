@@ -1,0 +1,75 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+require 'rubygems'
+require 'commander/import'
+require_relative '../lib/test_helpers/Okta/okta_token'
+
+program :name, 'okta'
+program :version, '0.0.1'
+program :description, 'Create a token based on the information provided.'
+
+command :user_sign_in do |c|
+  c.syntax = 'okta user_id_token [options]'
+  c.summary = 'Retrieves the user token based on the key'
+  c.description = "Gets the token within the generated response. If a 'key' is provided then extracts
+the value for that key. Returns entire response if no Key is provided"
+
+  c.example 'description', 'command example'
+  c.option '-i STRING', '--issuer STRING', String, 'Issuer Url'
+  c.option '-u STRING', '--username STRING', String, 'Username of Okta account'
+  c.option '-p STRING', '--password STRING', String, 'Password of Okta account'
+  c.option '-s STRING', '--scope STRING', String, 'Scope of the account. Default is openid'
+  c.option '-g STRING', '--grant_type STRING', String, 'grant type for the account. default is password'
+  c.option '--cid STRING', '--client_id STRING', String, 'Client id of the application registered with Okta'
+  c.option '--cs STRING', '--client_secret STRING', String, 'Client secret of the application registered with Okta'
+  c.option '-k STRING', '--key STRING', String, '[Optional] Key to be retrieved from the response. Accepts only id or access'
+  c.action do |_args, options|
+    TestHelpers::Okta.configure!(issuer: options.issuer)
+
+    params = {
+      username: options.username,
+      password: options.password,
+      scope: options.scope,
+      grant_type: options.grant_type,
+      client_id: options.client_id,
+      client_secret: options.client_secret
+    }.compact
+
+    TestHelpers::Okta.user_sign_in(params)
+
+    puts TestHelpers::Okta.id_token if options.key == 'id'
+    puts TestHelpers::Okta.access_token if options.key == 'access'
+    puts TestHelpers::Okta.response if options.key.nil?
+  end
+end
+
+command :client_sign_in do |c|
+  c.syntax = 'okta client_id_token [options]'
+  c.summary = 'Retrieves the client token based on the key'
+  c.description = "Gets the token within the generated response. If a 'key' is provided then extracts
+the value for that key. Returns entire response if no Key is provided"
+
+  c.example 'description', 'command example'
+  c.option '-i STRING', '--issuer, STRING', String, 'Issuer Url'
+  c.option '-s STRING', '--scope, STRING', String, 'Scope of the account. Default is openid'
+  c.option '--cid STRING', '--client_id, STRING', String, 'Client id of the application registered with Okta'
+  c.option '--cs STRING', '--client_secret, STRING', String, 'Client secret of the application registered with Okta'
+  c.option '-k STRING', '--key STRING', String, 'Key to be retrieved from the response. Accepts only id or access'
+  c.action do |_args, options|
+    TestHelpers::Okta.configure!(issuer: options.issuer)
+    params = {
+      username: options.username,
+      password: options.password,
+      scope: options.scope,
+      grant_type: options.grant_type,
+      client_id: options.client_id,
+      client_secret: options.client_secret
+    }.compact
+    TestHelpers::Okta.client_sign_in(params)
+
+    puts TestHelpers::Okta.id_token if options.key == 'id'
+    puts TestHelpers::Okta.access_token if options.key == 'access'
+    puts TestHelpers::Okta.response if options.key.nil?
+  end
+end

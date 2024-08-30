@@ -1,0 +1,36 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+require 'rubygems'
+require 'commander/import'
+require_relative '../lib/test_helpers/Auth0/auth0_token'
+
+program :name, 'auth0'
+program :version, '0.0.1'
+program :description, 'Generate Auth0 token for the username and the password and other settings provided'
+
+command :get_token_for do |c|
+  c.syntax = 'auth0 get_token_for [options]'
+  c.summary = 'Used to generate an auth0 token for the username and password provided'
+  c.description = ''
+  c.example 'description', 'command example'
+  c.option '--client_id STRING', String, 'Client Id of the Auth0 setting'
+  c.option '--connection STRING', String, 'Connection of the Auth0 setting'
+  c.option '--grant_type STRING', String, 'Grant Type of the Auth0 setting'
+  c.option '--scope STRING', String, 'Scope of the Auth0 setting'
+  c.option '--url STRING', String, 'Url of the Auth0 setting'
+  c.option '--username STRING', String, 'Username for which the token is required'
+  c.option '--password STRING', String, 'Password of the user for which the token is required'
+  c.action do |_args, options|
+    new_option = {
+      client_id: options.client_id,
+      grant_type: options.grant_type,
+      scope: options.scope,
+      connection: options.connection,
+      url: options.url,
+      username: options.username,
+      password: options.password
+    }
+    say TestHelpers::Auth0Token.new(new_option).get_token.id_token
+  end
+end

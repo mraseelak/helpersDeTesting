@@ -1,0 +1,212 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+require 'rubygems'
+require 'commander/import'
+require_relative '../lib/test_helpers/Hiptest/hiptest'
+
+program :name, 'hiptest_setup'
+program :version, '0.0.1'
+program :description,
+        'This is to build a hiptest test run and return the id of the test run with all the tests pulled in based on the list.'
+
+command :build_test_run do |c|
+  c.syntax = 'hiptest_setup build_test_run [options]'
+  c.summary = 'Build a test run'
+  c.description = 'Build a test run with the build number as the id and with scenarios that match the tag. This will take in the test tag, and build of the AUT and create a test run with all the scenarios that match the tag, and return a test run id created'
+  c.example 'description',
+            'hiptest_setup build_test_run -p 1234 -b 10-10-1000 -a KJHKDSF -c KHKJKH987 -u me@example.com -b 10-10-1000 -r critical -l PA:01-01-2019-1232 -d "Description of the test"'
+  c.option '-p STRING', '--project STRING', String, 'Id of the Hiptest project'
+  c.option '-a STRING', '--access_token STRING', String, 'Hiptest Access Token'
+  c.option '-c STRING', '--client STRING', String, 'Hiptest Client Id'
+  c.option '-u STRING', '--uid STRING', String, 'Hiptest User Id'
+  c.option '-b STRING', '--build STRING', String, 'Build Id of the Application Under Test'
+  c.option '-r STRING', '--run_tag STRING', String, 'Tag assigned to the scnarios that you want to include in the test'
+  c.option '-d STRING', '--description STRING', String, 'OPTIONAL - Description for the tag. This should be enclosed in double quotes'
+  c.option '-l STRING', '--list', String, 'OPTIONAL - List of applications. Comma separated Key value pairs eg: key1:value1,key2:value2 '
+  c.option '-n String', '--name_run', String, 'OPTIONAL - Add the run tag to the test run (06-13-19-1045 - critical) default is "true"'
+  c.action do |_args, options|
+    TestHelpers::Hiptest.configure_project!(
+      project: options.project,
+      access_token: options.access_token,
+      client: options.client,
+      uid: options.uid,
+      build: options.build,
+      tags: options.run_tag,
+      description: options.description,
+      list: options.list,
+      name: options.name_run
+    )
+    id = TestHelpers::Hiptest.build_test_run
+    say id
+  end
+end
+
+command :get_scenario_ids_by_tag do |c|
+  c.syntax = 'hiptest_setup get_scenarios_by_tag [options]'
+  c.summary = 'Retrieve scenario ids by tag given'
+  c.description = 'Retrieve scenario ids by tag given. If none provided then retrieve all scenarios in project'
+  c.example 'description', 'hiptest_setup get_scenario_ids_by_tag -p 1234 -a KJHKDSF -c KHKJKH987 -u me@example.com -r critical'
+  c.option '-p STRING', '--project STRING', String, 'Id of the Hiptest project'
+  c.option '-a STRING', '--access_token STRING', String, 'Hiptest Access Token'
+  c.option '-c STRING', '--client STRING', String, 'Hiptest Client Id'
+  c.option '-u STRING', '--uid STRING', String, 'Hiptest User Id'
+  c.option '-r STRING', '--run_tag STRING OPTIONAL', String, 'Tag filter for the scenarios'
+
+  c.action do |_args, options|
+    params = {
+      project: options.project,
+      access_token: options.access_token,
+      client: options.client,
+      uid: options.uid,
+      build: options.build,
+      tags: options.run_tag
+    }
+
+    TestHelpers::Hiptest.configure_project!(params)
+    say TestHelpers::Hiptest.collect_scenarios
+  end
+end
+
+command :sprint do |c|
+  c.syntax = 'hiptest_setup sprint [options]'
+  c.summary = 'Retrieve a test run with the sprint name.'
+  c.description = <<-DESCRIPTION
+  Retrieve a test run with the sprint name. If the sprint is present it will sync all the tests in the sprint and update
+  with new tests if needed. If there is no test run it will retrieve all the scenarios with the sprint name, and create#{' '}
+  a sprint with the name and selected tests#{' '}
+  IMPORTANT: Both the sprint name and the tags on the test must be the same and without spaces
+  DESCRIPTION
+  c.example 'description', 'hiptest_setup sprint -p 1234 -a KJHKDSF -c KHKJKH987 -u me@example.com -s apple -d "something"'
+  c.option '-p STRING', '--project STRING', String, 'Id of the Hiptest project'
+  c.option '-a STRING', '--access_token STRING', String, 'Hiptest Access Token'
+  c.option '-c STRING', '--client STRING', String, 'Hiptest Client Id'
+  c.option '-u STRING', '--uid STRING', String, 'Hiptest User Id'
+  c.option '-s STRING', '--sprint STRING', String, 'Sprint name, name of the active sprint. Archived sprints are not supported'
+  c.option '-d STRING', '--description STRING OPTIONAL', String, 'Sprint Description'
+  c.action do |_args, options|
+    TestHelpers::Hiptest.configure_project!(
+      project: options.project,
+      access_token: options.access_token,
+      client: options.client,
+      uid: options.uid,
+      build: options.sprint,
+      tags: options.sprint,
+      description: options.description,
+      name: false
+    )
+    sc = TestHelpers::Hiptest::Scenarios.collect_scenarios
+    sc_count = TestHelpers::Hiptest::Scenarios.scenario_count
+    TestHelpers::Hiptest::TestRuns.add_scenarios sc if sc_count.positive?
+
+    id = TestHelpers::Hiptest::TestRuns.retrieve_test_run
+
+    if sc_count.zero?
+      say 0
+    else
+      if id
+        TestHelpers::Hiptest::TestRuns.sync_and_wait  # First sync up all the tests and ...
+        TestHelpers::Hiptest::TestRuns.add_scenarios_to_existing_run if sc_count.positive?
+      else
+        id = TestHelpers::Hiptest::TestRuns.create_test_run if sc_count.positive?
+        TestHelpers::Hiptest::TestRuns.sync_and_wait
+      end
+      say id
+    end
+  end
+end
+
+command :move_sprint_tags do |c|
+  c.syntax = 'hiptest_setup move_sprint_tags [options]'
+  c.summary = 'Move or add tags marked with a sprint id to a different sprint name'
+  c.description = <<-DESCRIPTION
+  This command will collect all the scenarios tagged with a specific sprint tag and add them to another test run.
+  This is very useful to move all the tests that are in the old sprint to regression. However if you do wish not add all of them
+  you will have to mark those tests with a different tag from the old sprint name
+  DESCRIPTION
+  c.example 'description', 'hiptest_setup move_sprint_tags -p 1234 -a KJHKDSF -c KHKJKH987 -u me@example.com -r apple -d regression'
+  c.option '-p STRING', '--project STRING', String, 'Id of the Hiptest project'
+  c.option '-a STRING', '--access_token STRING', String, 'Hiptest Access Token'
+  c.option '-c STRING', '--client STRING', String, 'Hiptest Client Id'
+  c.option '-u STRING', '--uid STRING', String, 'Hiptest User Id'
+  c.option '-r STRING', '--run_tags STRING', String, 'Name of the tag that the scenarios have. Archived sprints are not supported'
+  c.option '-d STRING', '--destination STRING OPTIONAL', String, 'Sprint name where you want to add all the scenarios to. Archived sprints are not supported'
+  c.action do |_args, options|
+    TestHelpers::Hiptest.configure_project!(
+      project: options.project,
+      access_token: options.access_token,
+      client: options.client,
+      uid: options.uid,
+      build: options.destination,
+      tags: options.run_tags,
+      description: options.description,
+      name: false
+    )
+    id = TestHelpers::Hiptest::TestRuns.retrieve_test_run
+    raise "Run defined by the name '#{TestHelpers::Hiptest::TestRuns.build}' not found. Create it using 'sprint' command" if id.nil?
+
+    sc = TestHelpers::Hiptest::Scenarios.collect_scenarios
+    sc_count = TestHelpers::Hiptest::Scenarios.scenario_count
+
+    TestHelpers::Hiptest::TestRuns.sync_and_wait
+    if sc_count.positive?
+      TestHelpers::Hiptest::TestRuns.add_scenarios sc
+      TestHelpers::Hiptest::TestRuns.add_scenarios_to_existing_run
+    end
+    say id
+  end
+end
+
+command :add_tag_to_scenarios do |c|
+  c.syntax = 'hiptest_setup add_new_tag_to_scenarios [options]'
+  c.summary = 'Add new tag to scenarios that match with an existing tags'
+  c.description = <<-DESCRIPTION
+  This command will collect all the scenarios tagged with a specific sprint tag and add another tag to them. This is#{' '}
+  very useful when you need to split tests in an existing sprint to different tags.#{' '}
+  For example: if there are slow and fast tests in sprint_1, tag them initially with sprint_1 and fast_tests. When you start
+  a new sprint you can now tag all the tests in sprint_1 as regression_fast_tests and regression_slow_tests and then
+  add these tests to the regression suite in the relevant fast or slow division.
+
+  hiptest_setup add_tag_to_scenarios -p 1234 -a KJHKDSF -c KHKJKH987 -u me@example.com -l "sprint1,fast_test" -n regression_fast_test
+
+  Will take all the tests that match either 'sprint1' or 'fast_test' and then tag all of them with regression_fast_test
+
+  hiptest_setup add_tag_to_scenarios -p 1234 -a KJHKDSF -c KHKJKH987 -u me@example.com -l "sprint1,fast_test" -n regression_fast_test -i
+  Will take only the tests that match both 'sprint1' and 'fast_test' and then tag them with regression_fast_test
+  DESCRIPTION
+  c.example 'description',
+            'hiptest_setup add_tag_to_scenarios -p 1234 -a KJHKDSF -c KHKJKH987 -u me@example -c.com -c "sprint1,fast_test" -n regression_fast_test -i'
+  c.option '-p STRING', '--project STRING', String, 'Id of the Hiptest project'
+  c.option '-a STRING', '--access_token STRING', String, 'Hiptest Access Token'
+  c.option '-c STRING', '--client STRING', String, 'Hiptest Client Id'
+  c.option '-u STRING', '--uid STRING', String, 'Hiptest User Id'
+  c.option '-l STRING', '--label STRING', String, 'tag(label) of the scenarios that is getting updated with new tag'
+  c.option '-n STRING', '--name STRING', String, 'New label name'
+  c.option '-e STRING', '--value STRING', String,
+           "OPTIONAL Attribute added to 'name'. This will result the tag to be in the form 'name:value'. Omit this flag if it is unnecessary"
+  c.option '-d', '--dry_run', 'OPTIONAL Will display the scenario tags that are selected for adding the new tag'
+  c.option '-i', '--no-inclusive',
+           'OPTIONAL Will select scenarios that match all the tags(labels) provided. Default is true. Set flag to select all scenarios that match any of the tag'
+
+  c.action do |_args, options|
+    params = {
+      project: options.project,
+      access_token: options.access_token,
+      client: options.client,
+      uid: options.uid,
+      tags: options.label
+    }
+    inclusive = options.no_inclusive.nil? ? true : false
+
+    TestHelpers::Hiptest.configure_project!(params)
+    tag_list = TestHelpers::Hiptest::Scenarios.tags
+    sc_list = inclusive ? TestHelpers::Hiptest::Scenarios.scenarios_with_same_tags(tag_list) : TestHelpers::Hiptest::Scenarios.collect_scenarios
+
+    if options.dry_run
+      puts 'The following scenarios will be affected with the new tag'
+      p sc_list
+    else
+      TestHelpers::Hiptest::Scenarios.add_tag_to_scenarios(sc_list, options.name, options.value)
+    end
+  end
+end

@@ -1,0 +1,88 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+require 'rubygems'
+require 'commander/import'
+require_relative '../lib/test_helpers/AWS/s3'
+
+program :name, 's3_service'
+program :version, '0.0.1'
+program :description, 'Access to S3 bucket to download files'
+
+command :download do |c|
+  c.syntax = 's3_service download [options]'
+  c.summary = 'Used to retrieve secret value associated with the secret_id and key provided'
+  c.description = 'Retrieve secret value associated with the secret_id and key provided'
+  c.example 'description', 'command example'
+  c.option '-a STRING', '--access_key_id STRING', String, 'AWS Access Key id'
+  c.option '-s STRING', '--secret_access_key STRING', String, 'AWS Secret Access Key '
+  c.option '--st STRING', '--session_token STRING OPTIONAL', String, 'AWS session Token'
+  c.option '-r STRING', '--region STRING', String, 'AWS region Default is us-east-1'
+  c.option '-b STRING', '--bucket STRING', String, 'Name of the bucket'
+  c.option '-d STRING', '--destination STRING', String, 'Target destination for the download'
+  c.option '-k STRING', '--key STRING', String, 'Key within the secret collection whose value is required'
+
+  c.action do |__args, options|
+    puts __args
+    region = options.region || 'us-east-1'
+    new_option = {
+      access_key_id: options.access_key_id,
+      secret_access_key: options.secret_access_key,
+      session_token: options.session_token,
+      region: region
+    }
+    say TestHelpers::AWS::S3.new(new_option).download_file(options.bucket, options.key, options.target)
+  end
+end
+
+command :download_all do |c|
+  c.syntax = 's3_service download_all [options]'
+  c.summary = 'Used to download all the files from the target location'
+  c.description = 'Retrieve secret value associated with the secret_id and key provided'
+  c.example 'description', 'command example'
+  c.option '-a STRING', '--access_key_id STRING', String, 'AWS Access Key id'
+  c.option '-s STRING', '--secret_access_key STRING', String, 'AWS Secret Access Key '
+  c.option '--st STRING', '--session_token STRING OPTIONAL', String, 'AWS session Token'
+  c.option '-r STRING', '--region STRING', String, 'AWS region Default is us-east-1'
+  c.option '-b STRING', '--bucket STRING', String, 'Name of the bucket'
+  c.option '-d STRING', '--destination STRING', String, 'Target destination for the download'
+  c.option '-k STRING', '--key STRING', String, 'Key within the secret collection whose value is required'
+
+  c.action do |__args, options|
+    region = options.region || 'us-east-1'
+    new_option = {
+      access_key_id: options.access_key_id,
+      secret_access_key: options.secret_access_key,
+      session_token: options.session_token,
+      region: region,
+      secret_id: options.secret_id
+    }
+    say TestHelpers::AWS::S3.new(new_option).download_files(options.bucket, options.key, options.destination)
+  end
+end
+
+command :upload_file do |c|
+  c.syntax = 's3_service upload_file [options]'
+  c.summary = 'Used to upload file to the key within the bucket'
+  c.description = 'Retrieve secret value associated with the secret_id and key provided'
+  c.example 'description', 'command example'
+  c.option '-a STRING', '--access_key_id STRING', String, 'AWS Access Key id'
+  c.option '-s STRING', '--secret_access_key STRING', String, 'AWS Secret Access Key '
+  c.option '--st STRING', '--session_token STRING OPTIONAL', String, 'AWS session Token'
+  c.option '-r STRING', '--region STRING', String, 'AWS region Default is us-east-1'
+  c.option '-b STRING', '--bucket STRING', String, 'Name of the bucket'
+  c.option '-f STRING', '--file STRING', String, 'File that you want to upload'
+  c.option '-k STRING', '--key STRING', String, 'Target Key within the bucket where you want to upload the data to'
+
+  c.action do |__args, options|
+    region = options.region || 'us-east-1'
+    new_option = {
+      access_key_id: options.access_key_id,
+      secret_access_key: options.secret_access_key,
+      session_token: options.session_token,
+      region: region
+    }
+    TestHelpers::AWS::S3.new(new_option).upload_file(options.bucket, options.file, options.key)
+    puts "Uploaded #{options.file} to #{options.key} under #{options.bucket}"
+  end
+end

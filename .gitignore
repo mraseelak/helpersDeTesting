@@ -1,0 +1,21 @@
+/.bundle/
+/.yardoc
+/_yardoc/
+/coverage/
+/doc/
+/pkg/
+/spec/reports/
+/tmp/
+.idea/
+.byebug_history
+test_helpers-*.gem
+latest_specs*
+prerelease*
+specs.*
+quick/
+
+# rspec failure tracking
+.rspec_status
+
+Gemfile.lock
+coverage
