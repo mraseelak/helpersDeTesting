@@ -7,7 +7,7 @@ testing this freeing up the developer from writing them.
 Add this line to your application's Gemfile:
 
 ```ruby
-gem 'test_helpers'
+gem 'helpersDeTesting'
 ```
 
 And then execute:
@@ -16,7 +16,7 @@ And then execute:
 
 Or install it yourself as:
 
-    $ gem install test_helpers
+    $ gem install helpersDeTesting
 
 ## Usage
 
@@ -24,7 +24,7 @@ Or install it yourself as:
 In the gemspec require your gem
 
 ```docker
-gem 'test_helpers', git: 'https://github.com/BIAD/test_helpers.git'
+gem 'test_helpers', git: 'https://github.com/BIAD/helpersDeTesting.git'
 ```
 #### Auth0
  The ideal way to use this gem would be to create the Auth0 object, which can then be used with username and password to get the token
@@ -35,7 +35,7 @@ auth0_obj = TestHelpers::Auth0Token.new(
           grant_type: "password",
           scope: "openid email roles",
           client_id: "<client_id>",
-          url: 'https://ncimatch.auth0.com/oauth/ro',
+          url: 'https://server.auth0.com/oauth/ro',
         )
 
 tokenObj = auth0_obj.get_token('<username>', 'password')
@@ -52,7 +52,7 @@ token = TestHelpers::Auth0Token.new(
                   grant_type: "password",
                   scope: "openid email roles",
                   client_id: "<client_id>",
-                  url: 'https://ncimatch.auth0.com/oauth/ro',
+                  url: 'https://server.auth0.com/oauth/ro',
                   username: "<username>",
                   password: "<password>"
                 ).get_token.id_token
@@ -316,7 +316,7 @@ Bug reports and pull requests are welcome on GitHub at https://github.com/BIAD/t
 ### Note:
 Any changes to `/bin` or `/lib` folder means the version has to be updated and changelog listed with the changes made. 
 
-    Location of version: lib/test_helpers/version.rb
+    Location of version: lib/helpersDetesting/version.rb
     Location of changelog: Changelog.md 
 
 Once the version has been updated and pushed to master, a new tag has to be released. All depending projects must update the tag being pulled. 
